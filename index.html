@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>BlindCat - Gestión de Lotes y Trazabilidad</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 1100px; margin: 20px auto; padding: 0 15px; background: #f4f6f8; }
+    h1 { color: #1b4332; }
+    .card { background: white; padding: 18px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.08); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+    label { font-size: 12px; color: #555; display: block; margin-bottom: 3px; }
+    input, select, button { width: 100%; box-sizing: border-box; padding: 8px; border-radius: 5px; border: 1px solid #ccc; font-size: 14px; }
+    button { background: #2d6a4f; color: white; border: none; cursor: pointer; font-weight: bold; align-self: end; }
+    button:hover { background: #1b4332; }
+    button.danger { background: #b00020; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 13px; }
+    th { background: #2d6a4f; color: white; }
+    #alerta { padding: 12px; border-radius: 6px; margin-bottom: 15px; display: none; font-weight: bold; }
+    .ok { background: #d8f3dc; color: #1b4332; border: 1px solid #95d5b2; }
+    .err { background: #ffd6d6; color: #800000; border: 1px solid #ff8fa3; }
+  </style>
+</head>
+<body>
+  <h1>BlindCat — Sistema de Trazabilidad Agronómica</h1>
+  <div id="alerta"></div>
+
+  <!-- 1. CREATE -->
+  <div class="card">
+    <h3>1. CREATE — Registrar Nuevo Lote</h3>
+    <div class="grid">
+      <div>
+        <label>Variedad</label>
+        <select id="id_variedad">
+          <option value="1">1 - Charlotte Web</option>
+          <option value="2">2 - ACDC</option>
+        </select>
+      </div>
+      <div>
+        <label>Invernadero</label>
+        <select id="id_invernadero">
+          <option value="1">1 - Módulo Norte A (Cap. 2)</option>
+          <option value="2">2 - Módulo Sur B (Cap. 5)</option>
+        </select>
+      </div>
+      <div>
+        <label>ID Licencia</label>
+        <input type="number" id="id_licencia" value="1">
+      </div>
+      <div>
+        <label>Cantidad de Plantas</label>
+        <input type="number" id="cantidad_plantas" value="100">
+      </div>
+      <div>
+        <label>Fecha Inicio</label>
+        <input type="date" id="fecha_inicio" value="2026-11-18">
+      </div>
+      <div>
+        <label>Fecha Cosecha (Opcional)</label>
+        <input type="date" id="fecha_cosecha">
+      </div>
+      <div>
+        <label>Cédula Cosechador (Rol 2 - Opcional)</label>
+        <input type="text" id="cedula_cosechador" placeholder="Ej. 1004004">
+      </div>
+      <button onclick="crearLote()">Crear Lote</button>
+    </div>
+  </div>
+
+  <!-- 2. READ -->
+  <div class="card">
+    <h3>2. READ — Lotes Registrados en Base de Datos</h3>
+    <button style="width: auto; margin-bottom: 8px;" onclick="cargarLotes()">Refrescar Tabla</button>
+    <table>
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Variedad</th>
+          <th>Invernadero</th>
+          <th>Plantas</th>
+          <th>Estado</th>
+          <th>Fecha Cosecha</th>
+          <th>Cosechador</th>
+          <th>Peso Húmedo (kg)</th>
+          <th>Peso Seco (kg)</th>
+        </tr>
+      </thead>
+      <tbody id="tabla-lotes"></tbody>
+    </table>
+  </div>
+
+  <!-- 3. UPDATE -->
+  <div class="card">
+    <h3>3. UPDATE — Actualizar Estado, Pesos y Cosecha del Lote</h3>
+    <div class="grid">
+      <div>
+        <label>Código de Trazabilidad</label>
+        <input type="text" id="upd_codigo" placeholder="LT-2026-00001">
+      </div>
+      <div>
+        <label>Nuevo Estado</label>
+        <select id="upd_estado">
+          <option value="VEGETATIVA">VEGETATIVA</option>
+          <option value="FLORACION">FLORACION</option>
+          <option value="SECADO">SECADO</option>
+          <option value="APROBADO">APROBADO</option>
+        </select>
+      </div>
+      <div>
+        <label>Peso Húmedo (kg)</label>
+        <input type="number" step="0.01" id="upd_humedo" placeholder="Ej. 50.00">
+      </div>
+      <div>
+        <label>Peso Seco (kg)</label>
+        <input type="number" step="0.01" id="upd_seco" placeholder="Ej. 12.50">
+      </div>
+      <div>
+        <label>Fecha Cosecha</label>
+        <input type="date" id="upd_fecha_cosecha">
+      </div>
+      <div>
+        <label>Cédula Cosechador (Rol 2)</label>
+        <input type="text" id="upd_cosechador" placeholder="Ej. 1004004">
+      </div>
+      <button onclick="actualizarLote()">Actualizar Lote</button>
+    </div>
+  </div>
+
+  <!-- 4. DELETE / SOFT DELETE -->
+  <div class="card">
+    <h3>4. DELETE / Soft Delete — Protección de Integridad</h3>
+    <div class="grid">
+      <div>
+        <label>Cédula Empleado a Desactivar</label>
+        <input type="text" id="del_cedula" value="1003003">
+      </div>
+      <button onclick="desactivarEmpleado()">Soft Delete Empleado (activo=false)</button>
+      <button class="danger" onclick="probarInmutabilidad()">Probar DELETE en Custodia (Trigger)</button>
+    </div>
+  </div>
+
+  <script>
+    function mostrarAlerta(msg, esError = false) {
+      const box = document.getElementById('alerta');
+      box.textContent = msg;
+      box.className = esError ? 'err' : 'ok';
+      box.style.display = 'block';
+    }
+
+    async function cargarLotes() {
+      const res = await fetch('/api/lotes');
+      const datos = await res.json();
+      const tbody = document.getElementById('tabla-lotes');
+      tbody.innerHTML = datos.map(l => `
+        <tr>
+          <td><strong>${l.codigo_trazabilidad}</strong></td>
+          <td>${l.variedad}</td>
+          <td>${l.invernadero}</td>
+          <td>${l.cantidad_plantas}</td>
+          <td>${l.estado_actual}</td>
+          <td>${l.fecha_cosecha ?? '-'}</td>
+          <td>${l.cosechador ?? '-'}</td>
+          <td>${l.peso_humedo_kg ?? '-'}</td>
+          <td>${l.peso_seco_kg ?? '-'}</td>
+        </tr>
+      `).join('');
+    }
+
+    async function crearLote() {
+      const fCosecha = document.getElementById('fecha_cosecha').value;
+      const cCosechador = document.getElementById('cedula_cosechador').value.trim();
+
+      const body = {
+        id_variedad: Number(document.getElementById('id_variedad').value),
+        id_invernadero: Number(document.getElementById('id_invernadero').value),
+        id_licencia: Number(document.getElementById('id_licencia').value),
+        cantidad_plantas: Number(document.getElementById('cantidad_plantas').value),
+        fecha_inicio: document.getElementById('fecha_inicio').value,
+        fecha_cosecha: fCosecha || null,
+        cedula_cosechador: cCosechador || null
+      };
+
+      const res = await fetch('/api/lotes', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (!res.ok) return mostrarAlerta('Error BD: ' + data.detail, true);
+      mostrarAlerta(`${data.mensaje}: ${data.lote.codigo_trazabilidad}`);
+      cargarLotes();
+    }
+
+    async function actualizarLote() {
+      const codigo = document.getElementById('upd_codigo').value.trim();
+      const hum = document.getElementById('upd_humedo').value;
+      const sec = document.getElementById('upd_seco').value;
+      const fCosecha = document.getElementById('upd_fecha_cosecha').value;
+      const cCosechador = document.getElementById('upd_cosechador').value.trim();
+
+      const body = {
+        estado_actual: document.getElementById('upd_estado').value,
+        peso_humedo_kg: hum ? Number(hum) : null,
+        peso_seco_kg: sec ? Number(sec) : null,
+        fecha_cosecha: fCosecha || null,
+        cedula_cosechador: cCosechador || null
+      };
+
+      const res = await fetch(`/api/lotes/${codigo}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (!res.ok) return mostrarAlerta('Regla de Negocio BD: ' + data.detail, true);
+      mostrarAlerta(`${data.mensaje}: ${data.lote.codigo_trazabilidad} -> ${data.lote.estado_actual}`);
+      cargarLotes();
+    }
+
+    async function desactivarEmpleado() {
+      const cedula = document.getElementById('del_cedula').value.trim();
+      const res = await fetch(`/api/empleados/${cedula}/desactivar`, { method: 'PATCH' });
+      const data = await res.json();
+      if (!res.ok) return mostrarAlerta('Error: ' + data.detail, true);
+      mostrarAlerta(`${data.mensaje}: ${data.empleado.nombre_completo} (activo = ${data.empleado.activo})`);
+    }
+
+    async function probarInmutabilidad() {
+      const res = await fetch('/api/custodia/1', { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) return mostrarAlerta('Integridad Protegida por Trigger: ' + data.detail, true);
+      mostrarAlerta(data.mensaje);
+    }
+
+    cargarLotes();
+  </script>
+</body>
+</html>
